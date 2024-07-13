@@ -18,10 +18,6 @@ func NewUserServices() *UserServices {
 
 func (s *UserServices) RegisterByEmail(id uuid.UUID, email, avatarUrl, firstName, lastName, password string) (types.User, error) {
 
-	if email == "" || avatarUrl == "" || firstName == "" || lastName == "" || password == "" {
-		return types.User{}, fmt.Errorf("some fields are empty")
-	}
-
 	var count int64
 	if err := db.DB.Model(&types.UserEmail{}).Where("LOWER(email) = LOWER(?)", email).Count(&count).Error; err != nil {
 		return types.User{}, fmt.Errorf("error checking existing user: %w", err)
