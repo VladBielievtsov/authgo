@@ -3,12 +3,11 @@ package services
 import (
 	"authgo/db"
 	"authgo/internal/types"
-	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
-	"gorm.io/gorm"
 )
 
 type UserServices struct{}
@@ -23,25 +22,18 @@ func (s *UserServices) RegisterByEmail(id uuid.UUID, email, avatarUrl, firstName
 		return types.User{}, fmt.Errorf("some fields are empty")
 	}
 
-	var existingUser types.User
-	if err := db.DB.Where("email = ?", email).First(&existingUser).Error; err == nil {
-		return types.User{}, fmt.Errorf("email already in use")
-	} else if !errors.Is(err, gorm.ErrRecordNotFound) {
+	var count int64
+	if err := db.DB.Model(&types.UserEmail{}).Where("LOWER(email) = LOWER(?)", email).Count(&count).Error; err != nil {
 		return types.User{}, fmt.Errorf("error checking existing user: %w", err)
 	}
 
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
-	if err != nil {
-		return types.User{}, fmt.Errorf("failed to hash password")
+	if count > 0 {
+		return types.User{}, fmt.Errorf("email already in use")
 	}
 
-	user := types.User{
-		ID:        &id,
-		Email:     email,
-		AvatarURL: avatarUrl,
-		FirstName: firstName,
-		LastName:  lastName,
-		Password:  string(hashedPassword),
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(strings.TrimSpace(password)), bcrypt.DefaultCost)
+	if err != nil {
+		return types.User{}, fmt.Errorf("failed to hash password")
 	}
 
 	tx := db.DB.Begin()
@@ -54,9 +46,20 @@ func (s *UserServices) RegisterByEmail(id uuid.UUID, email, avatarUrl, firstName
 		}
 	}()
 
+	emailId := uuid.New()
+
+	user := types.User{
+		ID:        &id,
+		AvatarURL: avatarUrl,
+		FirstName: strings.TrimSpace(firstName),
+		LastName:  strings.TrimSpace(lastName),
+		Password:  string(hashedPassword),
+		Emails:    []types.UserEmail{{ID: &emailId, Email: strings.TrimSpace(strings.ToLower(email)), IsPrimary: true}},
+	}
+
 	if err := tx.Create(&user).Error; err != nil {
 		tx.Rollback()
-		return types.User{}, fmt.Errorf("could not create user")
+		return types.User{}, fmt.Errorf("could not create user: %w", err)
 	}
 
 	if err := tx.Commit().Error; err != nil {

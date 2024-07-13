@@ -7,14 +7,21 @@ import (
 )
 
 type User struct {
+	ID        *uuid.UUID  `gorm:"type:uuid;not null;primaryKey" json:"id,omitempty"`
+	Password  string      `gorm:"varchar(255);not null" json:"password"`
+	AvatarURL string      `gorm:"type:varchar(255);not null" json:"avatar_url,omitempty"`
+	FirstName string      `gorm:"type:varchar(255);not null" json:"first_name,omitempty"`
+	LastName  string      `gorm:"type:varchar(255);not null" json:"last_name,omitempty"`
+	CreatedAt *time.Time  `gorm:"not null;default:now()" json:"createdAt"`
+	UpdatedAt *time.Time  `gorm:"not null;default:now()" json:"updatedAt"`
+	Emails    []UserEmail `gorm:"foreignKey:UserID" json:"emails,omitempty"`
+}
+
+type UserEmail struct {
 	ID        *uuid.UUID `gorm:"type:uuid;not null;primaryKey" json:"id,omitempty"`
+	UserID    *uuid.UUID `gorm:"type:uuid;not null" json:"-"`
 	Email     string     `gorm:"type:varchar(255);unique;not null" json:"email,omitempty"`
-	Password  string     `gorm:"varchar(255);not null" json:"password"`
-	AvatarURL string     `gorm:"type:varchar(255);not null" json:"avatar_url,omitempty"`
-	FirstName string     `gorm:"type:varchar(255);not null" json:"first_name,omitempty"`
-	LastName  string     `gorm:"type:varchar(255);not null" json:"last_name,omitempty"`
-	CreatedAt *time.Time `gorm:"not null;default:now()" json:"createdAt"`
-	UpdatedAt *time.Time `gorm:"not null;default:now()" json:"updatedAt"`
+	IsPrimary bool       `gorm:"not null;default:false" json:"is_primary,omitempty"`
 }
 
 type RegisterBody struct {

@@ -6,3 +6,6 @@ run: build
 
 build:
 	@go build -o bin/authgo cmd/main.go
+
+drop:
+	@go run cmd/drop/main.go
