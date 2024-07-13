@@ -25,6 +25,9 @@ func main() {
 
 	r.Use(middleware.Logger)
 
+	fs := http.StripPrefix("/uploads/", http.FileServer(http.Dir("./uploads")))
+	r.Handle("/uploads/*", fs)
+
 	r.Post("/register", handlers.Register)
 
 	http.ListenAndServe(":"+cfg.Application.Port, r)
