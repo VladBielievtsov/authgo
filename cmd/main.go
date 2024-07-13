@@ -21,6 +21,8 @@ func main() {
 		utils.ErrorHandler(err)
 	}
 
+	db.Migrate()
+
 	r := chi.NewRouter()
 
 	r.Use(middleware.Logger)

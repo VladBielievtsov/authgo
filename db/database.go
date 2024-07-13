@@ -2,6 +2,7 @@ package db
 
 import (
 	"authgo/internal/config"
+	"authgo/internal/types"
 	"fmt"
 	"log"
 
@@ -31,7 +32,7 @@ func ConnectDatabase() error {
 }
 
 func Migrate() error {
-	err := DB.AutoMigrate()
+	err := DB.AutoMigrate(&types.User{})
 	if err != nil {
 		return fmt.Errorf("failed to migrate database: %v", err)
 	}

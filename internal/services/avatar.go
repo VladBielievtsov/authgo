@@ -26,7 +26,13 @@ var colors = []color.RGBA{
 	{137, 0, 242, 255},
 }
 
-func GenerateAvatar(firstName, id string) (string, error) {
+type AvatarServices struct{}
+
+func NewAvatarServices() *AvatarServices {
+	return &AvatarServices{}
+}
+
+func (s *AvatarServices) GenerateAvatar(firstName, id string) (string, error) {
 	width := 200
 	height := 200
 	img := image.NewRGBA(image.Rect(0, 0, width, height))

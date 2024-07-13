@@ -18,9 +18,9 @@ type User struct {
 }
 
 type RegisterBody struct {
-	Email     string `gorm:"type:varchar(255);unique;not null" json:"email,omitempty"`
-	Password  string `gorm:"varchar(255);not null" json:"password"`
-	AvatarURL string `gorm:"type:varchar(255);not null" json:"avatar_url,omitempty"`
-	FirstName string `gorm:"type:varchar(255);not null" json:"first_name,omitempty"`
-	LastName  string `gorm:"type:varchar(255);not null" json:"last_name,omitempty"`
+	Email     string `json:"email,omitempty"`
+	Password  string `json:"password"`
+	AvatarURL string `json:"avatar_url,omitempty"`
+	FirstName string `json:"first_name,omitempty"`
+	LastName  string `json:"last_name,omitempty"`
 }
