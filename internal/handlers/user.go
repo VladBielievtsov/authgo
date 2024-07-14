@@ -72,3 +72,34 @@ func Register(w http.ResponseWriter, r *http.Request) {
 
 	utils.JSONResponse(w, http.StatusOK, user)
 }
+
+func Login(w http.ResponseWriter, r *http.Request) {
+	var req types.LoginBody
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		log.Printf("Error decoding request body: %v", err)
+		utils.JSONResponse(w, http.StatusBadRequest, map[string]string{"msg": "Invalid request payload"})
+		return
+	}
+
+	var errors []string
+
+	if strings.TrimSpace(req.Email) == "" {
+		errors = append(errors, "email is required")
+	}
+	if strings.TrimSpace(req.Password) == "" {
+		errors = append(errors, "password is required")
+	}
+
+	if len(errors) > 0 {
+		utils.JSONResponse(w, http.StatusBadRequest, map[string]string{"msg": strings.Join(errors, ", ")})
+		return
+	}
+
+	user, err := userServices.LoginByEmail(req.Email, req.Password)
+	if err != nil {
+		utils.JSONResponse(w, http.StatusInternalServerError, map[string]string{"msg": err.Error()})
+		return
+	}
+
+	utils.JSONResponse(w, http.StatusOK, user)
+}

@@ -2,10 +2,13 @@ package services
 
 import (
 	"authgo/db"
+	"authgo/internal/config"
 	"authgo/internal/types"
 	"fmt"
 	"strings"
+	"time"
 
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -63,4 +66,43 @@ func (s *UserServices) RegisterByEmail(id uuid.UUID, email, avatarUrl, firstName
 	}
 
 	return user, nil
+}
+
+func (s *UserServices) LoginByEmail(email, password string) (types.LoginResponce, error) {
+	var user types.User
+	var cfg = config.GetConfig()
+
+	err := db.DB.Joins("JOIN user_emails ON user_emails.user_id = users.id").
+		Where("user_emails.email = ? AND user_emails.is_primary = ?", email, true).
+		Preload("Emails").
+		First(&user).Error
+	if err != nil {
+		return types.LoginResponce{}, fmt.Errorf("could not find user: %v", err)
+	}
+
+	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password))
+	if err != nil {
+		return types.LoginResponce{}, fmt.Errorf("invalid password")
+	}
+
+	tokenByte := jwt.New(jwt.SigningMethodHS256)
+	now := time.Now().UTC()
+	claims := tokenByte.Claims.(jwt.MapClaims)
+
+	claims["sub"] = user.ID
+	claims["exp"] = now.Add(120 * time.Minute).Unix()
+	claims["iat"] = now.Unix()
+	claims["nbf"] = now.Unix()
+
+	tokenString, err := tokenByte.SignedString([]byte(cfg.Application.JwtSecter))
+	if err != nil {
+		return types.LoginResponce{}, fmt.Errorf("generating JWT Token failed")
+	}
+
+	result := types.LoginResponce{
+		User:  user,
+		Token: tokenString,
+	}
+
+	return result, nil
 }

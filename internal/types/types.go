@@ -31,3 +31,13 @@ type RegisterBody struct {
 	FirstName string `json:"first_name,omitempty"`
 	LastName  string `json:"last_name,omitempty"`
 }
+
+type LoginBody struct {
+	Email    string `json:"email"`
+	Password string `json:"password"`
+}
+
+type LoginResponce struct {
+	User  User   `json:"user"`
+	Token string `json:"token"`
+}

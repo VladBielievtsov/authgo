@@ -31,6 +31,7 @@ func main() {
 	r.Handle("/uploads/*", fs)
 
 	r.Post("/register", handlers.Register)
+	r.Post("/login", handlers.Login)
 
 	http.ListenAndServe(":"+cfg.Application.Port, r)
 }

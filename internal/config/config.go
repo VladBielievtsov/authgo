@@ -14,7 +14,8 @@ type Config struct {
 }
 
 type applocationConf struct {
-	Port string
+	Port      string
+	JwtSecter string
 }
 
 type DbEnv struct {
@@ -50,7 +51,8 @@ func New() (*Config, error) {
 			Password: dbPassword,
 		},
 		Application: applocationConf{
-			Port: os.Getenv("APP_PORT"),
+			Port:      os.Getenv("APP_PORT"),
+			JwtSecter: os.Getenv("JWT_SECTER"),
 		},
 	}
 
