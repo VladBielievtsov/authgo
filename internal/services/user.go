@@ -20,6 +20,8 @@ func NewUserServices() *UserServices {
 }
 
 func (s *UserServices) RegisterByEmail(id uuid.UUID, email, avatarUrl, firstName, lastName, password string) (types.User, error) {
+	cfg := config.GetConfig()
+	var mailServices = NewMailServices(cfg)
 
 	var count int64
 	if err := db.DB.Model(&types.UserEmail{}).Where("LOWER(email) = LOWER(?)", email).Count(&count).Error; err != nil {
@@ -72,12 +74,22 @@ func (s *UserServices) RegisterByEmail(id uuid.UUID, email, avatarUrl, firstName
 		return types.User{}, fmt.Errorf("could not commit transaction: %w", err)
 	}
 
+	auth := mailServices.New()
+
+	if err := mailServices.Send(
+		"Subject: AuthGo - Email Confirmation\r\nContent-Type: text/html; charset=utf-8\r\n\r\n<html><body><p>Confirm Email: <a href='http://"+cfg.Application.Domain+"/confirm/"+confirmationToken.String()+"'>Confirmation Link</a></p></body></html>\r\n",
+		email,
+		auth,
+	); err != nil {
+		return types.User{}, fmt.Errorf("failed to send confirmation email: %w", err)
+	}
+
 	return user, nil
 }
 
 func (s *UserServices) LoginByEmail(email, password string) (types.LoginResponce, error) {
 	var user types.User
-	var cfg = config.GetConfig()
+	cfg := config.GetConfig()
 
 	err := db.DB.Joins("JOIN user_emails ON user_emails.user_id = users.id").
 		Where("user_emails.email = ? AND user_emails.is_primary = ?", email, true).

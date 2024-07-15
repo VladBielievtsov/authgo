@@ -11,11 +11,20 @@ import (
 type Config struct {
 	Application applocationConf
 	Db          DbEnv
+	Mail        mailConf
 }
 
 type applocationConf struct {
 	Port      string
+	Domain    string
 	JwtSecter string
+}
+
+type mailConf struct {
+	Identity string
+	Username string
+	Password string
+	Host     string
 }
 
 type DbEnv struct {
@@ -52,7 +61,14 @@ func New() (*Config, error) {
 		},
 		Application: applocationConf{
 			Port:      os.Getenv("APP_PORT"),
+			Domain:    os.Getenv("APP_DOMAIN"),
 			JwtSecter: os.Getenv("JWT_SECTER"),
+		},
+		Mail: mailConf{
+			Identity: "",
+			Username: os.Getenv("SMTPFrom"),
+			Password: os.Getenv("SMTPPassword"),
+			Host:     "smtp.gmail.com",
 		},
 	}
 
