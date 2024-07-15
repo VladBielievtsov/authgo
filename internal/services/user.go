@@ -46,6 +46,7 @@ func (s *UserServices) RegisterByEmail(id uuid.UUID, email, avatarUrl, firstName
 	}()
 
 	emailId := uuid.New()
+	confirmationToken := uuid.New()
 
 	user := types.User{
 		ID:        &id,
@@ -53,7 +54,13 @@ func (s *UserServices) RegisterByEmail(id uuid.UUID, email, avatarUrl, firstName
 		FirstName: strings.TrimSpace(firstName),
 		LastName:  strings.TrimSpace(lastName),
 		Password:  string(hashedPassword),
-		Emails:    []types.UserEmail{{ID: &emailId, Email: strings.TrimSpace(strings.ToLower(email)), IsPrimary: true}},
+		Emails: []types.UserEmail{{
+			ID:                &emailId,
+			Email:             strings.TrimSpace(strings.ToLower(email)),
+			IsPrimary:         true,
+			IsConfirmed:       false,
+			ConfirmationToken: &confirmationToken,
+		}},
 	}
 
 	if err := tx.Create(&user).Error; err != nil {
@@ -80,6 +87,12 @@ func (s *UserServices) LoginByEmail(email, password string) (types.LoginResponce
 		return types.LoginResponce{}, fmt.Errorf("could not find user: %v", err)
 	}
 
+	for _, userEmail := range user.Emails {
+		if userEmail.IsPrimary && !userEmail.IsConfirmed {
+			return types.LoginResponce{}, fmt.Errorf("confirm your email, verification link has been sent to your email")
+		}
+	}
+
 	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password))
 	if err != nil {
 		return types.LoginResponce{}, fmt.Errorf("invalid password")
@@ -99,10 +112,8 @@ func (s *UserServices) LoginByEmail(email, password string) (types.LoginResponce
 		return types.LoginResponce{}, fmt.Errorf("generating JWT Token failed")
 	}
 
-	result := types.LoginResponce{
+	return types.LoginResponce{
 		User:  user,
 		Token: tokenString,
-	}
-
-	return result, nil
+	}, nil
 }
