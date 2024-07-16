@@ -10,11 +10,21 @@ import (
 	"os"
 	"strings"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 )
 
-var avatarService = services.NewAvatarServices()
-var userServices = services.NewUserServices()
+var avatarService *services.AvatarServices
+var userServices *services.UserServices
+
+func UserRegisterRoutes(r chi.Router, us *services.UserServices, as *services.AvatarServices) {
+	userServices = us
+	avatarService = as
+	r.Post("/register", Register)
+	r.Post("/login", Login)
+	r.Put("/send-confirm", SendConfirmLink)
+	r.Get("/users", GetAllUsers)
+}
 
 func Register(w http.ResponseWriter, r *http.Request) {
 	var req types.RegisterBody
@@ -112,4 +122,26 @@ func GetAllUsers(w http.ResponseWriter, r *http.Request) {
 	}
 
 	utils.JSONResponse(w, http.StatusOK, users)
+}
+
+func SendConfirmLink(w http.ResponseWriter, r *http.Request) {
+	var req types.SendConfirmLinkBody
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		log.Printf("Error decoding request body: %v", err)
+		utils.JSONResponse(w, http.StatusBadRequest, map[string]string{"msg": "Invalid request payload"})
+		return
+	}
+
+	if strings.TrimSpace(req.Email) == "" {
+		utils.JSONResponse(w, http.StatusBadRequest, map[string]string{"msg": "email is required"})
+		return
+	}
+
+	result, err := userServices.SendConfirmLink(strings.ToLower(strings.TrimSpace(req.Email)))
+	if err != nil {
+		utils.JSONResponse(w, http.StatusInternalServerError, map[string]string{"msg": err.Error()})
+		return
+	}
+
+	utils.JSONResponse(w, http.StatusOK, map[string]string{"msg": result})
 }

@@ -3,6 +3,7 @@ package config
 import (
 	"authgo/internal/utils"
 	"fmt"
+	"log"
 	"os"
 
 	"github.com/joho/godotenv"
@@ -21,7 +22,6 @@ type applocationConf struct {
 }
 
 type mailConf struct {
-	Identity string
 	Username string
 	Password string
 	Host     string
@@ -65,7 +65,6 @@ func New() (*Config, error) {
 			JwtSecter: os.Getenv("JWT_SECTER"),
 		},
 		Mail: mailConf{
-			Identity: "",
 			Username: os.Getenv("SMTPFrom"),
 			Password: os.Getenv("SMTPPassword"),
 			Host:     "smtp.gmail.com",
@@ -76,5 +75,8 @@ func New() (*Config, error) {
 }
 
 func GetConfig() *Config {
+	if cfg == nil {
+		log.Panic("Config not initialized. Call New() before GetConfig()")
+	}
 	return cfg
 }

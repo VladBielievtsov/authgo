@@ -13,16 +13,19 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-type UserServices struct{}
+type UserServices struct {
+	cfg          *config.Config
+	mailServices *MailServices
+}
 
-func NewUserServices() *UserServices {
-	return &UserServices{}
+func NewUserServices(cfg *config.Config) *UserServices {
+	return &UserServices{
+		cfg:          cfg,
+		mailServices: NewMailServices(cfg),
+	}
 }
 
 func (s *UserServices) RegisterByEmail(id uuid.UUID, email, avatarUrl, firstName, lastName, password string) (types.User, error) {
-	cfg := config.GetConfig()
-	var mailServices = NewMailServices(cfg)
-
 	var count int64
 	if err := db.DB.Model(&types.UserEmail{}).Where("LOWER(email) = LOWER(?)", email).Count(&count).Error; err != nil {
 		return types.User{}, fmt.Errorf("error checking existing user: %w", err)
@@ -74,10 +77,14 @@ func (s *UserServices) RegisterByEmail(id uuid.UUID, email, avatarUrl, firstName
 		return types.User{}, fmt.Errorf("could not commit transaction: %w", err)
 	}
 
-	auth := mailServices.New()
+	if s.mailServices == nil {
+		return types.User{}, fmt.Errorf("mail services not initialized")
+	}
 
-	if err := mailServices.Send(
-		"Subject: AuthGo - Email Confirmation\r\nContent-Type: text/html; charset=utf-8\r\n\r\n<html><body><p>Confirm Email: <a href='http://"+cfg.Application.Domain+"/confirm/"+confirmationToken.String()+"'>Confirmation Link</a></p></body></html>\r\n",
+	auth := s.mailServices.New()
+
+	if err := s.mailServices.Send(
+		"Subject: AuthGo - Email Confirmation\r\nContent-Type: text/html; charset=utf-8\r\n\r\n<html><body><p>Confirm Email: <a href='http://"+s.cfg.Application.Domain+"/confirm/"+confirmationToken.String()+"'>Confirmation Link</a></p></body></html>\r\n",
 		email,
 		auth,
 	); err != nil {
@@ -89,7 +96,6 @@ func (s *UserServices) RegisterByEmail(id uuid.UUID, email, avatarUrl, firstName
 
 func (s *UserServices) LoginByEmail(email, password string) (types.LoginResponce, error) {
 	var user types.User
-	cfg := config.GetConfig()
 
 	err := db.DB.Joins("JOIN user_emails ON user_emails.user_id = users.id").
 		Where("user_emails.email = ? AND user_emails.is_primary = ?", email, true).
@@ -119,7 +125,7 @@ func (s *UserServices) LoginByEmail(email, password string) (types.LoginResponce
 	claims["iat"] = now.Unix()
 	claims["nbf"] = now.Unix()
 
-	tokenString, err := tokenByte.SignedString([]byte(cfg.Application.JwtSecter))
+	tokenString, err := tokenByte.SignedString([]byte(s.cfg.Application.JwtSecter))
 	if err != nil {
 		return types.LoginResponce{}, fmt.Errorf("generating JWT Token failed")
 	}
@@ -139,4 +145,45 @@ func (s *UserServices) GetAllUsers() ([]types.User, error) {
 	}
 
 	return users, nil
+}
+
+func (s *UserServices) SendConfirmLink(email string) (string, error) {
+	var user types.User
+
+	err := db.DB.Joins("JOIN user_emails ON user_emails.user_id = users.id").
+		Where("user_emails.email = ?", email).
+		Preload("Emails").
+		First(&user).Error
+	if err != nil {
+		return "", fmt.Errorf("could not find user: %v", err)
+	}
+
+	for _, userEmail := range user.Emails {
+		if userEmail.Email == email {
+			if userEmail.IsConfirmed {
+				return "", fmt.Errorf("email is already confirmed")
+			}
+
+			newToken := uuid.New()
+			userEmail.ConfirmationToken = &newToken
+
+			err = db.DB.Save(&userEmail).Error
+			if err != nil {
+				return "", fmt.Errorf("could not update confirmation token: %v", err)
+			}
+
+			auth := s.mailServices.New()
+
+			if err := s.mailServices.Send(
+				"Subject: AuthGo - Email Confirmation\r\nContent-Type: text/html; charset=utf-8\r\n\r\n<html><body><p>Confirm Email: <a href='http://"+s.cfg.Application.Domain+"/confirm/"+newToken.String()+"'>Confirmation Link</a></p></body></html>\r\n",
+				email,
+				auth,
+			); err != nil {
+				return "", fmt.Errorf("failed to send confirmation email: %w", err)
+			}
+			return "confirmation link has been sent to your email", nil
+		}
+	}
+
+	return "", fmt.Errorf("email not found")
 }

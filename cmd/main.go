@@ -4,6 +4,7 @@ import (
 	"authgo/db"
 	"authgo/internal/config"
 	"authgo/internal/handlers"
+	"authgo/internal/services"
 	"authgo/internal/utils"
 	"net/http"
 
@@ -20,19 +21,18 @@ func main() {
 	if err := db.ConnectDatabase(); err != nil {
 		utils.ErrorHandler(err)
 	}
-
 	db.Migrate()
 
-	r := chi.NewRouter()
+	avatarService := services.NewAvatarServices()
+	userServices := services.NewUserServices(cfg)
 
+	r := chi.NewRouter()
 	r.Use(middleware.Logger)
 
 	fs := http.StripPrefix("/uploads/", http.FileServer(http.Dir("./uploads")))
 	r.Handle("/uploads/*", fs)
 
-	r.Post("/register", handlers.Register)
-	r.Post("/login", handlers.Login)
-	r.Get("/users", handlers.GetAllUsers)
+	handlers.UserRegisterRoutes(r, userServices, avatarService)
 
 	http.ListenAndServe(":"+cfg.Application.Port, r)
 }

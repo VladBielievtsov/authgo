@@ -2,32 +2,42 @@ package services
 
 import (
 	"authgo/internal/config"
+	"log"
 	"net/smtp"
 	"strings"
 )
 
 type MailServices struct {
-	cfg *config.Config
+	cfg  *config.Config
+	auth smtp.Auth
 }
 
 func NewMailServices(cfg *config.Config) *MailServices {
-	return &MailServices{cfg: cfg}
-}
+	if cfg == nil {
+		log.Panic("config is nil")
+	}
 
-func (s *MailServices) New() smtp.Auth {
-	return smtp.PlainAuth(
-		s.cfg.Mail.Identity,
-		s.cfg.Mail.Username,
-		s.cfg.Mail.Password,
-		s.cfg.Mail.Host,
+	auth := smtp.PlainAuth(
+		"",
+		cfg.Mail.Username,
+		cfg.Mail.Password,
+		cfg.Mail.Host,
 	)
+	return &MailServices{
+		cfg:  cfg,
+		auth: auth,
+	}
 }
 
-func (s *MailServices) Send(msg string, to string, auth smtp.Auth) error {
+func (ms *MailServices) New() smtp.Auth {
+	return ms.auth
+}
+
+func (ms *MailServices) Send(msg, to string, auth smtp.Auth) error {
 	err := smtp.SendMail(
 		"smtp.gmail.com:587",
 		auth,
-		s.cfg.Mail.Username,
+		ms.cfg.Mail.Username,
 		[]string{strings.ToLower(to)},
 		[]byte(msg),
 	)

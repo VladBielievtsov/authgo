@@ -23,7 +23,7 @@ type UserEmail struct {
 	Email             string     `gorm:"type:varchar(255);unique;not null" json:"email"`
 	IsPrimary         bool       `gorm:"not null;default:false" json:"is_primary"`
 	IsConfirmed       bool       `gorm:"not null;default:false" json:"is_confirmed"`
-	ConfirmationToken *uuid.UUID `gorm:"type:uuid;unique" json:"confirmation_token"`
+	ConfirmationToken *uuid.UUID `gorm:"type:uuid" json:"confirmation_token"`
 }
 
 type RegisterBody struct {
@@ -42,4 +42,8 @@ type LoginBody struct {
 type LoginResponce struct {
 	User  User   `json:"user"`
 	Token string `json:"token"`
+}
+
+type SendConfirmLinkBody struct {
+	Email string `json:"email"`
 }
