@@ -32,6 +32,7 @@ func main() {
 
 	r.Post("/register", handlers.Register)
 	r.Post("/login", handlers.Login)
+	r.Get("/users", handlers.GetAllUsers)
 
 	http.ListenAndServe(":"+cfg.Application.Port, r)
 }

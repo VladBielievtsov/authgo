@@ -129,3 +129,14 @@ func (s *UserServices) LoginByEmail(email, password string) (types.LoginResponce
 		Token: tokenString,
 	}, nil
 }
+
+func (s *UserServices) GetAllUsers() ([]types.User, error) {
+	var users []types.User
+
+	result := db.DB.Preload("Emails").Find(&users)
+	if result.Error != nil {
+		return nil, fmt.Errorf("failed to get users: %v", result.Error)
+	}
+
+	return users, nil
+}

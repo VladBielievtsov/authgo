@@ -103,3 +103,13 @@ func Login(w http.ResponseWriter, r *http.Request) {
 
 	utils.JSONResponse(w, http.StatusOK, user)
 }
+
+func GetAllUsers(w http.ResponseWriter, r *http.Request) {
+	users, err := userServices.GetAllUsers()
+	if err != nil {
+		utils.JSONResponse(w, http.StatusInternalServerError, map[string]string{"msg": err.Error()})
+		return
+	}
+
+	utils.JSONResponse(w, http.StatusOK, users)
+}
