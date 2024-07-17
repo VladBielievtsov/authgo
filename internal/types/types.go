@@ -23,7 +23,7 @@ type UserEmail struct {
 	Email             string     `gorm:"type:varchar(255);unique;not null" json:"email"`
 	IsPrimary         bool       `gorm:"not null;default:false" json:"is_primary"`
 	IsConfirmed       bool       `gorm:"not null;default:false" json:"is_confirmed"`
-	ConfirmationToken int        `gorm:"type:int" json:"confirmation_token"`
+	ConfirmationToken *int       `gorm:"type:int" json:"confirmation_token"`
 	CreatedAt         *time.Time `gorm:"not null;default:now()" json:"createdAt"`
 }
 
@@ -47,4 +47,9 @@ type LoginResponce struct {
 
 type SendConfirmCodeBody struct {
 	Email string `json:"email"`
+}
+
+type ConfirmEmailBody struct {
+	Email string `json:"email"`
+	Code  int    `json:"code"`
 }

@@ -23,6 +23,7 @@ func UserRegisterRoutes(r chi.Router, us *services.UserServices, as *services.Av
 	r.Post("/register", Register)
 	r.Post("/login", Login)
 	r.Put("/send-confirm", SendConfirmCode)
+	r.Put("/confirm", ConfirmEmail)
 	r.Get("/users", GetAllUsers)
 }
 
@@ -132,12 +133,34 @@ func SendConfirmCode(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if strings.TrimSpace(req.Email) == "" {
+	if strings.TrimSpace(strings.ToLower(req.Email)) == "" {
 		utils.JSONResponse(w, http.StatusBadRequest, map[string]string{"msg": "email is required"})
 		return
 	}
 
 	result, err := userServices.SendConfirmCode(strings.ToLower(strings.TrimSpace(req.Email)))
+	if err != nil {
+		utils.JSONResponse(w, http.StatusInternalServerError, map[string]string{"msg": err.Error()})
+		return
+	}
+
+	utils.JSONResponse(w, http.StatusOK, map[string]string{"msg": result})
+}
+
+func ConfirmEmail(w http.ResponseWriter, r *http.Request) {
+	var req types.ConfirmEmailBody
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		log.Printf("Error decoding request body: %v", err)
+		utils.JSONResponse(w, http.StatusBadRequest, map[string]string{"msg": "Invalid request payload"})
+		return
+	}
+
+	if strings.TrimSpace(strings.ToLower(req.Email)) == "" {
+		utils.JSONResponse(w, http.StatusBadRequest, map[string]string{"msg": "email is required"})
+		return
+	}
+
+	result, err := userServices.ConfirmEmail(req.Code, strings.ToLower(strings.TrimSpace(req.Email)))
 	if err != nil {
 		utils.JSONResponse(w, http.StatusInternalServerError, map[string]string{"msg": err.Error()})
 		return

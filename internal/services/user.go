@@ -66,7 +66,7 @@ func (s *UserServices) RegisterByEmail(id uuid.UUID, email, avatarUrl, firstName
 			Email:             strings.TrimSpace(strings.ToLower(email)),
 			IsPrimary:         true,
 			IsConfirmed:       false,
-			ConfirmationToken: confirmationToken,
+			ConfirmationToken: &confirmationToken,
 		}},
 	}
 
@@ -167,7 +167,7 @@ func (s *UserServices) SendConfirmCode(email string) (string, error) {
 			}
 
 			newToken := rand.Intn(900000) + 100000
-			userEmail.ConfirmationToken = newToken
+			userEmail.ConfirmationToken = &newToken
 			now := time.Now()
 			userEmail.CreatedAt = &now
 
@@ -185,9 +185,66 @@ func (s *UserServices) SendConfirmCode(email string) (string, error) {
 			); err != nil {
 				return "", fmt.Errorf("failed to send confirmation email: %w", err)
 			}
-			return "confirmation link has been sent to your email", nil
+			return "confirmation code has been sent to your email", nil
 		}
 	}
 
-	return "", fmt.Errorf("email not found")
+	return "", fmt.Errorf("email %s not found", email)
+}
+
+func (s *UserServices) ConfirmEmail(code int, email string) (string, error) {
+	var user types.User
+	tx := db.DB.Begin()
+
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	err := tx.Joins("JOIN user_emails ON user_emails.user_id = users.id").
+		Where("user_emails.email = ?", email).
+		Preload("Emails").
+		First(&user).Error
+	if err != nil {
+		tx.Rollback()
+		return "", fmt.Errorf("could not find user: %v", err)
+	}
+
+	for _, userEmail := range user.Emails {
+		if userEmail.Email == email {
+			if *userEmail.ConfirmationToken != code {
+				tx.Rollback()
+				return "", fmt.Errorf("invalid confirmation code")
+			}
+
+			if userEmail.IsConfirmed {
+				tx.Rollback()
+				return "", fmt.Errorf("email is already confirmed")
+			}
+
+			if time.Since(*userEmail.CreatedAt) > 1*time.Hour {
+				tx.Rollback()
+				return "", fmt.Errorf("confirmation code has expired")
+			}
+
+			userEmail.IsConfirmed = true
+			userEmail.ConfirmationToken = nil
+
+			err = tx.Save(&userEmail).Error
+			if err != nil {
+				tx.Rollback()
+				return "", fmt.Errorf("could not confirm email: %v", err)
+			}
+
+			if err := tx.Commit().Error; err != nil {
+				return "", fmt.Errorf("could not commit transaction: %w", err)
+			}
+
+			return "email has been confirmed", nil
+		}
+	}
+
+	tx.Rollback()
+	return "", fmt.Errorf("email %s not found", email)
 }
