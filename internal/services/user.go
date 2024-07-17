@@ -140,10 +140,22 @@ func (s *UserServices) LoginByEmail(email, password string) (types.LoginResponce
 
 func (s *UserServices) GetAllUsers() ([]types.User, error) {
 	var users []types.User
+	tx := db.DB.Begin()
 
-	result := db.DB.Preload("Emails").Find(&users)
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	result := tx.Preload("Emails").Find(&users)
 	if result.Error != nil {
+		tx.Rollback()
 		return nil, fmt.Errorf("failed to get users: %v", result.Error)
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		return nil, fmt.Errorf("could not commit transaction: %w", err)
 	}
 
 	return users, nil
@@ -151,18 +163,27 @@ func (s *UserServices) GetAllUsers() ([]types.User, error) {
 
 func (s *UserServices) SendConfirmCode(email string) (string, error) {
 	var user types.User
+	tx := db.DB.Begin()
 
-	err := db.DB.Joins("JOIN user_emails ON user_emails.user_id = users.id").
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	err := tx.Joins("JOIN user_emails ON user_emails.user_id = users.id").
 		Where("user_emails.email = ?", email).
 		Preload("Emails").
 		First(&user).Error
 	if err != nil {
+		tx.Rollback()
 		return "", fmt.Errorf("could not find user: %v", err)
 	}
 
 	for _, userEmail := range user.Emails {
 		if userEmail.Email == email {
 			if userEmail.IsConfirmed {
+				tx.Rollback()
 				return "", fmt.Errorf("email is already confirmed")
 			}
 
@@ -171,13 +192,17 @@ func (s *UserServices) SendConfirmCode(email string) (string, error) {
 			now := time.Now()
 			userEmail.CreatedAt = &now
 
-			err = db.DB.Save(&userEmail).Error
+			err = tx.Save(&userEmail).Error
 			if err != nil {
+				tx.Rollback()
 				return "", fmt.Errorf("could not update confirmation token: %v", err)
 			}
 
-			auth := s.mailServices.New()
+			if err := tx.Commit().Error; err != nil {
+				return "", fmt.Errorf("could not commit transaction: %w", err)
+			}
 
+			auth := s.mailServices.New()
 			if err := s.mailServices.Send(
 				"Subject: AuthGo - Email Confirmation\r\nContent-Type: text/html; charset=utf-8\r\n\r\n<html><body><p>Verification code: "+strconv.Itoa(newToken)+"</p></body></html>\r\n",
 				email,
@@ -189,6 +214,7 @@ func (s *UserServices) SendConfirmCode(email string) (string, error) {
 		}
 	}
 
+	tx.Rollback()
 	return "", fmt.Errorf("email %s not found", email)
 }
 
