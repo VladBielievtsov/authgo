@@ -35,7 +35,7 @@ func (ms *MailServices) New() smtp.Auth {
 
 func (ms *MailServices) Send(msg, to string, auth smtp.Auth) error {
 	err := smtp.SendMail(
-		"smtp.gmail.com:587",
+		ms.cfg.Mail.Host+":"+ms.cfg.Mail.Port,
 		auth,
 		ms.cfg.Mail.Username,
 		[]string{strings.ToLower(to)},

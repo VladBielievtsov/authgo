@@ -22,7 +22,7 @@ func UserRegisterRoutes(r chi.Router, us *services.UserServices, as *services.Av
 	avatarService = as
 	r.Post("/register", Register)
 	r.Post("/login", Login)
-	r.Put("/send-confirm", SendConfirmLink)
+	r.Put("/send-confirm", SendConfirmCode)
 	r.Get("/users", GetAllUsers)
 }
 
@@ -124,8 +124,8 @@ func GetAllUsers(w http.ResponseWriter, r *http.Request) {
 	utils.JSONResponse(w, http.StatusOK, users)
 }
 
-func SendConfirmLink(w http.ResponseWriter, r *http.Request) {
-	var req types.SendConfirmLinkBody
+func SendConfirmCode(w http.ResponseWriter, r *http.Request) {
+	var req types.SendConfirmCodeBody
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		log.Printf("Error decoding request body: %v", err)
 		utils.JSONResponse(w, http.StatusBadRequest, map[string]string{"msg": "Invalid request payload"})
@@ -137,7 +137,7 @@ func SendConfirmLink(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := userServices.SendConfirmLink(strings.ToLower(strings.TrimSpace(req.Email)))
+	result, err := userServices.SendConfirmCode(strings.ToLower(strings.TrimSpace(req.Email)))
 	if err != nil {
 		utils.JSONResponse(w, http.StatusInternalServerError, map[string]string{"msg": err.Error()})
 		return

@@ -25,6 +25,7 @@ type mailConf struct {
 	Username string
 	Password string
 	Host     string
+	Port     string
 }
 
 type DbEnv struct {
@@ -67,7 +68,8 @@ func New() (*Config, error) {
 		Mail: mailConf{
 			Username: os.Getenv("SMTPFrom"),
 			Password: os.Getenv("SMTPPassword"),
-			Host:     "smtp.gmail.com",
+			Host:     os.Getenv("SMTPHost"),
+			Port:     os.Getenv("SMTPPort"),
 		},
 	}
 

@@ -5,6 +5,8 @@ import (
 	"authgo/internal/config"
 	"authgo/internal/types"
 	"fmt"
+	"math/rand"
+	"strconv"
 	"strings"
 	"time"
 
@@ -51,7 +53,7 @@ func (s *UserServices) RegisterByEmail(id uuid.UUID, email, avatarUrl, firstName
 	}()
 
 	emailId := uuid.New()
-	confirmationToken := uuid.New()
+	confirmationToken := rand.Intn(900000) + 100000
 
 	user := types.User{
 		ID:        &id,
@@ -64,7 +66,7 @@ func (s *UserServices) RegisterByEmail(id uuid.UUID, email, avatarUrl, firstName
 			Email:             strings.TrimSpace(strings.ToLower(email)),
 			IsPrimary:         true,
 			IsConfirmed:       false,
-			ConfirmationToken: &confirmationToken,
+			ConfirmationToken: confirmationToken,
 		}},
 	}
 
@@ -84,7 +86,7 @@ func (s *UserServices) RegisterByEmail(id uuid.UUID, email, avatarUrl, firstName
 	auth := s.mailServices.New()
 
 	if err := s.mailServices.Send(
-		"Subject: AuthGo - Email Confirmation\r\nContent-Type: text/html; charset=utf-8\r\n\r\n<html><body><p>Confirm Email: <a href='http://"+s.cfg.Application.Domain+"/confirm/"+confirmationToken.String()+"'>Confirmation Link</a></p></body></html>\r\n",
+		"Subject: AuthGo - Email Confirmation\r\nContent-Type: text/html; charset=utf-8\r\n\r\n<html><body><p>Verification code: "+strconv.Itoa(confirmationToken)+"</p></body></html>\r\n",
 		email,
 		auth,
 	); err != nil {
@@ -147,7 +149,7 @@ func (s *UserServices) GetAllUsers() ([]types.User, error) {
 	return users, nil
 }
 
-func (s *UserServices) SendConfirmLink(email string) (string, error) {
+func (s *UserServices) SendConfirmCode(email string) (string, error) {
 	var user types.User
 
 	err := db.DB.Joins("JOIN user_emails ON user_emails.user_id = users.id").
@@ -164,8 +166,10 @@ func (s *UserServices) SendConfirmLink(email string) (string, error) {
 				return "", fmt.Errorf("email is already confirmed")
 			}
 
-			newToken := uuid.New()
-			userEmail.ConfirmationToken = &newToken
+			newToken := rand.Intn(900000) + 100000
+			userEmail.ConfirmationToken = newToken
+			now := time.Now()
+			userEmail.CreatedAt = &now
 
 			err = db.DB.Save(&userEmail).Error
 			if err != nil {
@@ -175,7 +179,7 @@ func (s *UserServices) SendConfirmLink(email string) (string, error) {
 			auth := s.mailServices.New()
 
 			if err := s.mailServices.Send(
-				"Subject: AuthGo - Email Confirmation\r\nContent-Type: text/html; charset=utf-8\r\n\r\n<html><body><p>Confirm Email: <a href='http://"+s.cfg.Application.Domain+"/confirm/"+newToken.String()+"'>Confirmation Link</a></p></body></html>\r\n",
+				"Subject: AuthGo - Email Confirmation\r\nContent-Type: text/html; charset=utf-8\r\n\r\n<html><body><p>Verification code: "+strconv.Itoa(newToken)+"</p></body></html>\r\n",
 				email,
 				auth,
 			); err != nil {
